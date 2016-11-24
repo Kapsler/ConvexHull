@@ -47,10 +47,10 @@ void Visualization::Render()
 	window->display();
 }
 
-void Visualization::Wait()
+void Visualization::Wait(bool wait)
 {
 	sf::Event event;
-	bool waiting = true;
+	bool waiting = wait;
 
 	while(window->isOpen() && waiting)
 	{

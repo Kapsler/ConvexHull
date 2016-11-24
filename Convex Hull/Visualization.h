@@ -33,7 +33,7 @@ public:
 	~Visualization();
 
 	void Render();
-	void Wait();
+	void Wait(bool wait);
 
 	void SetPoints(std::vector<Point*>& other);
 	void UpdatePoint(Point* newPoint);

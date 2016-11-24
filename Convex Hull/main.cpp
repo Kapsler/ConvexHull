@@ -4,73 +4,106 @@
 #include <algorithm>
 
 #include "Visualization.h"
+#include <chrono>
+#include "TimerClass.h"
+#include <ppl.h>
 
-const int numPoints = 100;
+const int numPoints = 100000;
 const int maxCoord = 1000000;
-Visualization vis;
+Visualization *vis = nullptr;
 
-
+bool stepmode = false;
+bool renderflag = true;
 
 void QuickHull(std::vector<Point*>& points);
 void FindHull(std::vector<Point*>& points, Point P, Point Q);
-int getAngle(Point P, Point Q, Point X);
+int getAngle(const Point& P, const Point& Q, const Point& X);
 void sortPoints(Point P, Point Q, std::vector<Point*>& points, std::vector<Point*>& S);
 float distanceFromLine(Point P, Point Q, Point X);
 void DebugOutput(std::vector<Point*>& points);
+void GeneratePoints(std::vector<Point*>& points);
+
+bool greaterX(Point *X,Point *Y)
+{
+	return X->coords.x < Y->coords.x;
+}
 
 int main()
 {
+	TimerClass timer;
+	double generationTime, hullTime, freeTime;
 	// Generate points
 	std::vector<Point*> points(numPoints);
 
-	std::random_device rd;
-	std::mt19937 eng(rd());
-	std::uniform_int_distribution<> distr(0, maxCoord);
-	
-	for (int i = 0; i < numPoints; ++i)
+	if (renderflag)
 	{
-		points[i] = new Point(distr(eng) / 1100.0f, distr(eng) / 1100.0f);
-		//points[i]->print();
-		//std::cout << std::endl;
+		vis = new Visualization();
 	}
 
+	timer.StartTimer();
+	GeneratePoints(points);
+	generationTime = timer.GetTime();
+
+	timer.StartTimer();
 	QuickHull(points);
+	hullTime = timer.GetTime();
 
-	DebugOutput(points);
-
-	vis.Render();
-	vis.Wait();
-
-	for(auto obj : points)
+	if (vis != nullptr)
 	{
-		delete obj;
+		vis->Render();
+		vis->Wait(true);
 	}
+
+	//DebugOutput(points);
+
+	//Freeing stuff
+
+	timer.StartTimer();
+
+	#pragma omp parallel
+	{
+		#pragma omp for
+		for(auto i = 0; i < points.size(); ++i)
+		{
+			delete points[i];
+		}
+	}
+
+	delete vis;
+	freeTime = timer.GetTime();
+
+	std::cout << "Generating " << numPoints << " took " << generationTime << " seconds." << std::endl;;
+	std::cout << "Finding Hull took " << hullTime << " seconds." << std::endl;
+	std::cout << "Freeing stuff took " << freeTime << " seconds." << std::endl;
 
 	return 0;
-}
-
-bool greaterX(Point *X, Point *Y)
-{
-	return X->coords.x < Y->coords.x;
 }
 
 void QuickHull(std::vector<Point*>& points)
 {
 	// sort all points by X
-	//std::nth_element(points.begin(), points.begin(), points.end(), greaterX);
-	std::sort(points.begin(), points.end(), greaterX);
+	//std::sort(points.begin(), points.end(), greaterX);
+	//trying parallel - works
+	concurrency::parallel_buffered_sort(points.begin(), points.end(), greaterX);
 
-	vis.SetPoints(points);
-	vis.Wait();
+	//Generate Visuals
+	if (vis != nullptr)
+	{
+		vis->SetPoints(points);
+		vis->Wait(stepmode);
+	}
 
 	Point* P = points[0]; // smallest X
 	Point* Q = points[points.size()-1]; // greatest X
 	P->hull = true;
 	Q->hull = true;
-	vis.UpdatePoint(P);
-	vis.UpdatePoint(Q);
-	vis.AddLine(P, Q);
-	vis.Wait();
+	if (vis != nullptr)
+	{
+		vis->UpdatePoint(P);
+		vis->UpdatePoint(Q);
+		vis->AddLine(P, Q);
+		vis->Wait(stepmode);
+	}
 
 	std::vector<Point*> S1, S2; // Subgroups of points left and right from separating vector PQ
 	sortPoints(*P, *Q, points, S1);
@@ -95,9 +128,7 @@ void FindHull(std::vector<Point*>& points, Point P, Point Q)
 	int farthestPointIdx = -1;
 	for(auto obj : points)
 	{
-		if (obj->coords == P.coords || obj->coords == Q.coords) { continue; }
 		distance = distanceFromLine(P, Q, *obj);
-		//std::cout << "distance: " << distance << std::endl;
 		if(distance > maxDistance)
 		{
 			maxDistance = distance;
@@ -114,16 +145,16 @@ void FindHull(std::vector<Point*>& points, Point P, Point Q)
 
 	Point* farthestPoint = points[farthestPointIdx];
 	farthestPoint->hull = true;
-	vis.UpdatePoint(farthestPoint);
-	vis.AddLine(&P, farthestPoint);
-	vis.AddLine(farthestPoint, &Q);
-	vis.Wait();
-	vis.DeleteLine(&P, &Q);
-	vis.Wait();
 
-	//std::cout << "Farthest point was at ";
-	//farthestPoint->print();
-	//std::cout << " with a distance of " << maxDistance << std::endl;
+	if (vis != nullptr)
+	{
+		vis->UpdatePoint(farthestPoint);
+		vis->AddLine(&P, farthestPoint);
+		vis->AddLine(farthestPoint, &Q);
+		vis->Wait(stepmode);
+		vis->DeleteLine(&P, &Q);
+		vis->Wait(stepmode);
+	}
 
 	// Subgroups of points outside of triangle
 	std::vector<Point*> S1, S2; 
@@ -141,7 +172,7 @@ void FindHull(std::vector<Point*>& points, Point P, Point Q)
 	}
 }
 
-int getAngle(Point P, Point Q, Point X)
+int getAngle(const Point& P, const Point& Q, const Point& X)
 {
 	glm::vec2 PQ = Q.coords - P.coords;
 	glm::vec2 PX = X.coords - P.coords;
@@ -179,4 +210,21 @@ void DebugOutput(std::vector<Point*>& points)
 	points[i]->print();
 	std::cout << " is " << (points[i]->hull ? "" : "not ") << "part of the hull." << std::endl;
 	}
+}
+
+void GeneratePoints(std::vector<Point*>& points)
+{
+	#pragma omp parallel
+	{	
+
+		std::mt19937 eng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
+		std::uniform_int_distribution<> distr(0, maxCoord);
+
+		#pragma omp for
+		for (int i = 0; i < numPoints; ++i)
+		{
+			points[i] = new Point(distr(eng) / 1100.0f, distr(eng) / 1100.0f);
+		}
+	}
+
 }
