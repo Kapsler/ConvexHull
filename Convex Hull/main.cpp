@@ -77,7 +77,7 @@ int main(int argc, char** argv)
 	if (vis != nullptr)
 	{
 		vis->SetPoints(&points);
-		vis->Wait(stepmode);
+		if(stepmode) vis->Wait();
 	}
 
 	//Make Hull
@@ -89,7 +89,7 @@ int main(int argc, char** argv)
 	if (vis != nullptr)
 	{
 		vis->Render();
-		vis->Wait(true);
+		vis->Wait();
 	}
 
 	//Freeing stuff
@@ -121,7 +121,7 @@ void QuickHull(std::vector<Point*>& points)
 	if (vis != nullptr)
 	{
 		vis->AddLine(P, Q);
-		vis->Wait(stepmode);
+		if(stepmode)vis->Wait();
 	}
 
 	std::vector<Point*> S1, S2; // Subgroups of points left and right from separating vector PQ
@@ -177,9 +177,9 @@ void FindHull(std::vector<Point*>& points, Point P, Point Q)
 	{
 		vis->AddLine(&P, farthestPoint);
 		vis->AddLine(farthestPoint, &Q);
-		vis->Wait(stepmode);
+		if(stepmode) vis->Wait();
 		vis->DeleteLine(&P, &Q);
-		vis->Wait(stepmode);
+		if(stepmode) vis->Wait();
 	}
 
 	// Subgroups of points outside of triangle
@@ -240,12 +240,9 @@ float distanceFromLine(Point P, Point Q, Point X)
 
 void DebugOutput(std::vector<Point*>& points)
 {
-	for (int i = 0; i < numPoints; ++i)
-	{
-		std::cout << "Point " << (i + 1) << " at ";
-		points[i]->print();
-		std::cout << " is " << (points[i]->hull ? "" : "not ") << "part of the hull." << std::endl;
-	}
+	vis = new Visualization();
+	vis->SetPoints(&points);
+	vis->Wait();
 }
 
 void GeneratePoints(std::vector<Point*>& points)

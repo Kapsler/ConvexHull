@@ -54,10 +54,10 @@ void Visualization::Render()
 	window->display();
 }
 
-void Visualization::Wait(bool wait)
+void Visualization::Wait()
 {
 	sf::Event event;
-	bool waiting = wait;
+	bool waiting = true;
 
 	Render();
 
