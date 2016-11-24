@@ -3,30 +3,20 @@
 #include <iostream>
 #include <algorithm>
 
-#include "glm/glm.hpp"
+#include "Visualization.h"
 
-const int numPoints = 1000;
-const int maxCoord = 10000;
+const int numPoints = 100;
+const int maxCoord = 1000000;
+Visualization vis;
 
-struct Point
-{
-	Point(){}
-	Point(int px, int py)
-		:coords(px, py){}
-	glm::vec2 coords;
-	bool hull = false;
 
-	void print() const
-	{
-		std::cout << "(" << coords.x << " / " << coords.y << ")";
-	}
-};
 
 void QuickHull(std::vector<Point*>& points);
 void FindHull(std::vector<Point*>& points, Point P, Point Q);
 int getAngle(Point P, Point Q, Point X);
 void sortPoints(Point P, Point Q, std::vector<Point*>& points, std::vector<Point*>& S);
 float distanceFromLine(Point P, Point Q, Point X);
+void DebugOutput(std::vector<Point*>& points);
 
 int main()
 {
@@ -39,19 +29,17 @@ int main()
 	
 	for (int i = 0; i < numPoints; ++i)
 	{
-		points[i] = new Point(distr(eng), distr(eng));
+		points[i] = new Point(distr(eng) / 1100.0f, distr(eng) / 1100.0f);
 		//points[i]->print();
 		//std::cout << std::endl;
 	}
 
 	QuickHull(points);
 
-	for (int i = 0; i < numPoints; ++i)
-	{
-		std::cout << "Point " << (i + 1) << " at ";
-		points[i]->print();
-		std::cout << " is " << (points[i]->hull ? "" : "not ") << "part of the hull." << std::endl;
-	}
+	DebugOutput(points);
+
+	vis.Render();
+	vis.Wait();
 
 	for(auto obj : points)
 	{
@@ -71,10 +59,18 @@ void QuickHull(std::vector<Point*>& points)
 	// sort all points by X
 	//std::nth_element(points.begin(), points.begin(), points.end(), greaterX);
 	std::sort(points.begin(), points.end(), greaterX);
+
+	vis.SetPoints(points);
+	vis.Wait();
+
 	Point* P = points[0]; // smallest X
 	Point* Q = points[points.size()-1]; // greatest X
 	P->hull = true;
 	Q->hull = true;
+	vis.UpdatePoint(P);
+	vis.UpdatePoint(Q);
+	vis.AddLine(P, Q);
+	vis.Wait();
 
 	std::vector<Point*> S1, S2; // Subgroups of points left and right from separating vector PQ
 	sortPoints(*P, *Q, points, S1);
@@ -118,6 +114,12 @@ void FindHull(std::vector<Point*>& points, Point P, Point Q)
 
 	Point* farthestPoint = points[farthestPointIdx];
 	farthestPoint->hull = true;
+	vis.UpdatePoint(farthestPoint);
+	vis.AddLine(&P, farthestPoint);
+	vis.AddLine(farthestPoint, &Q);
+	vis.Wait();
+	vis.DeleteLine(&P, &Q);
+	vis.Wait();
 
 	//std::cout << "Farthest point was at ";
 	//farthestPoint->print();
@@ -132,6 +134,7 @@ void FindHull(std::vector<Point*>& points, Point P, Point Q)
 	{
 		FindHull(S1, P, *farthestPoint);
 	}
+
 	if (!S2.empty())
 	{
 		FindHull(S2, *farthestPoint, Q);
@@ -155,7 +158,7 @@ void sortPoints(Point P, Point Q, std::vector<Point*>& points, std::vector<Point
 	{
 		//ignore P and Q
 		if (obj->coords == P.coords || obj->coords == Q.coords) { continue; }
-		float angle = getAngle(P, Q, *obj);
+		float angle = static_cast<float>(getAngle(P, Q, *obj));
 		if (angle > 0)
 		{
 			S.push_back(obj);
@@ -166,4 +169,14 @@ void sortPoints(Point P, Point Q, std::vector<Point*>& points, std::vector<Point
 float distanceFromLine(Point P, Point Q, Point X)
 {
 	return std::abs((Q.coords.y - P.coords.y)*X.coords.x - (Q.coords.x - P.coords.x)*X.coords.y + Q.coords.x*P.coords.y - Q.coords.y*P.coords.x) / std::sqrt(std::pow((Q.coords.y - P.coords.y), 2) + std::pow((Q.coords.x - P.coords.x), 2));
+}
+
+void DebugOutput(std::vector<Point*>& points)
+{
+	for (int i = 0; i < numPoints; ++i)
+	{
+	std::cout << "Point " << (i + 1) << " at ";
+	points[i]->print();
+	std::cout << " is " << (points[i]->hull ? "" : "not ") << "part of the hull." << std::endl;
+	}
 }
