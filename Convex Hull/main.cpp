@@ -124,23 +124,28 @@ void QuickHull(std::vector<Point*>& points)
 		if(stepmode)vis->Wait();
 	}
 
-	std::vector<Point*> S1, S2; // Subgroups of points left and right from separating vector PQ
-	sortPoints(*P, *Q, points, S1);
-	sortPoints(*Q, *P, points, S2);
-
-	#pragma omp parallel num_threads(2)
+	#pragma omp parallel num_threads(8)
 	{
-		if(omp_get_thread_num() < 1)
+		#pragma omp sections
 		{
-			if (!S1.empty())
+			#pragma omp section
 			{
-				FindHull(S1, *P, *Q);
+				std::vector<Point*> S1; // Subgroups of points left and right from separating vector PQ
+				sortPoints(*P, *Q, points, S1);
+				if (!S1.empty())
+				{
+					FindHull(S1, *P, *Q);
+				}
 			}
-		} else
-		{
-			if (!S2.empty())
+
+			#pragma omp section
 			{
-				FindHull(S2, *Q, *P);
+				std::vector<Point*> S2; // Subgroups of points left and right from separating vector PQ
+				sortPoints(*Q, *P, points, S2);
+				if (!S2.empty())
+				{
+					FindHull(S2, *Q, *P);
+				}
 			}
 		}
 	}
@@ -182,30 +187,33 @@ void FindHull(std::vector<Point*>& points, Point P, Point Q)
 		if(stepmode) vis->Wait();
 	}
 
-	// Subgroups of points outside of triangle
-	std::vector<Point*> S1, S2;
-	sortPoints(P, *farthestPoint, points, S1);
-	sortPoints(*farthestPoint, Q, points, S2);
-
-	#pragma omp parallel num_threads(2)
+	#pragma omp parallel num_threads(8)
 	{
-		if (omp_get_thread_num() < 1)
+		#pragma omp sections
 		{
-			if (!S1.empty())
+			#pragma omp section
 			{
-				FindHull(S1, P, *farthestPoint);
-			}
-		}
-		else
-		{
-			if (!S2.empty())
-			{
-				FindHull(S2, *farthestPoint, Q);
-			}
-		}
-	}
 
-	
+				std::vector<Point*> S1;
+				sortPoints(P, *farthestPoint, points, S1);
+				if (!S1.empty())
+				{
+					FindHull(S1, P, *farthestPoint);
+				}
+			}
+
+			#pragma omp section
+			{
+				std::vector<Point*> S2;
+				sortPoints(*farthestPoint, Q, points, S2);
+
+				if (!S2.empty())
+				{
+					FindHull(S2, *farthestPoint, Q);
+				}
+			}
+		}
+	}	
 }
 
 int getAngle(const Point& P, const Point& Q, const Point& X)
