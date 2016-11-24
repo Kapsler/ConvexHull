@@ -47,7 +47,7 @@ void ReaderWriter::extractValuesFromContent(vector<float>& numbers)
 
 	numbers.reserve(numbercount);
 
-	for(unsigned int i = 0; i < numbercount; ++i)
+	for(auto i = 0; i < numbercount; ++i)
 	{
 		float nextNumber;
 		contentStream >> nextNumber; //float1

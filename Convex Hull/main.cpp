@@ -79,17 +79,16 @@ int main(int argc, char **argv)
 	timer.StartTimer();
 	QuickHull(points);
 	hullTime = timer.GetTime();
+	std::cout << "Finding Hull took " << hullTime << " seconds." << std::endl;
 
 	if (vis != nullptr)
 	{
-		timer.StartTimer();
 		vis->Render();
-		singleRender = timer.GetTime();
-		std::cout << "Render done" << std::endl;
 		vis->Wait(true);
 	}
 
 	//Freeing stuff
+	timer.StartTimer();
 	#pragma omp parallel
 	{
 		#pragma omp for
@@ -98,15 +97,8 @@ int main(int argc, char **argv)
 			delete points[i];
 		}
 	}
-	timer.StartTimer();
-	
 	delete vis;
 	freeTime = timer.GetTime();
-
-	//Output
-	std::cout << endl;
-	std::cout << "Finding Hull took " << hullTime << " seconds." << std::endl;
-	std::cout << "Rendering took " << singleRender << " seconds." << std::endl;
 	std::cout << "Freeing stuff took " << freeTime << " seconds." << std::endl;
 
 	return 0;
