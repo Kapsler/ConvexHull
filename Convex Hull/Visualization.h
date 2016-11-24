@@ -33,7 +33,7 @@ public:
 	~Visualization();
 
 	void Render();
-	void Wait(bool wait);
+	void Wait();
 
 	void SetPoints(std::vector<Point*>* other);
 	sf::CircleShape* ShapeForPoint(Point* newPoint) const;
