@@ -7,11 +7,12 @@
 #include <chrono>
 #include "TimerClass.h"
 #include "CommandLineParser.h"
-#include "ReaderWriter.h"
+#include "ReaderWriter.h" 
+#include <omp.h>
 
 int numPoints = 1000000;
 int maxCoord = 1000000;
-Visualization *vis = nullptr;
+Visualization* vis = nullptr;
 string inputFilename = "";
 
 bool stepmode = false;
@@ -24,50 +25,54 @@ void sortPoints(Point P, Point Q, std::vector<Point*>& points, std::vector<Point
 float distanceFromLine(Point P, Point Q, Point X);
 void DebugOutput(std::vector<Point*>& points);
 void GeneratePoints(std::vector<Point*>& points);
-bool ParseParameters(int &argc, char **argv);
+bool ParseParameters(int& argc, char** argv);
 
-bool greaterX(Point *X, Point *Y)
+bool greaterX(Point* X, Point* Y)
 {
 	return X->coords.x < Y->coords.x;
 }
 
-int main(int argc, char **argv)
+int main(int argc, char** argv)
 {
 	TimerClass timer;
 	double generationTime, hullTime, freeTime, singleRender = 0;
 	std::vector<Point*> points;
-	
-	if(!ParseParameters(argc, argv))
+
+	if (!ParseParameters(argc, argv))
 	{
 		return -1;
 	}
 
 
-	if(inputFilename.empty())
+	if (inputFilename.empty())
 	{
 		// Generate points
-		if (numPoints > 0) {
+		if (numPoints > 0)
+		{
 			timer.StartTimer();
 			GeneratePoints(points);
 			generationTime = timer.GetTime();
 			std::cout << "Generating " << numPoints << " took " << generationTime << " seconds." << std::endl;;
-		} else {
+		}
+		else
+		{
 			cerr << "Not enough points!" << endl;
 			return -1;
 		}
-	} else
+	}
+	else
 	{
 		//Read from file
 		std::vector<float> numbers;
 		ReaderWriter(inputFilename, numbers);
 
 		points.resize(numbers.size() / 2.0f);
-		for(auto i = 0; i < points.size(); ++i)
+		for (auto i = 0; i < points.size(); ++i)
 		{
 			points[i] = new Point(numbers[i], numbers[i + 1]);
 		}
 	}
-	
+
 
 	if (vis != nullptr)
 	{
@@ -89,10 +94,10 @@ int main(int argc, char **argv)
 
 	//Freeing stuff
 	timer.StartTimer();
-	#pragma omp parallel
+#pragma omp parallel
 	{
-		#pragma omp for
-		for(auto i = 0; i < points.size(); ++i)
+#pragma omp for
+		for (auto i = 0; i < points.size(); ++i)
 		{
 			delete points[i];
 		}
@@ -110,7 +115,7 @@ void QuickHull(std::vector<Point*>& points)
 	std::nth_element(points.begin(), points.begin() + points.size() - 1, points.end(), greaterX);
 
 	Point* P = points[0]; // smallest X
-	Point* Q = points[points.size()-1]; // greatest X
+	Point* Q = points[points.size() - 1]; // greatest X
 	P->hull = true;
 	Q->hull = true;
 	if (vis != nullptr)
@@ -123,13 +128,21 @@ void QuickHull(std::vector<Point*>& points)
 	sortPoints(*P, *Q, points, S1);
 	sortPoints(*Q, *P, points, S2);
 
-	if(!S1.empty())
+	#pragma omp parallel num_threads(2)
 	{
-		FindHull(S1, *P, *Q);
-	}
-	if(!S2.empty())
-	{
-		FindHull(S2, *Q, *P);
+		if(omp_get_thread_num() < 1)
+		{
+			if (!S1.empty())
+			{
+				FindHull(S1, *P, *Q);
+			}
+		} else
+		{
+			if (!S2.empty())
+			{
+				FindHull(S2, *Q, *P);
+			}
+		}
 	}
 }
 
@@ -140,10 +153,10 @@ void FindHull(std::vector<Point*>& points, Point P, Point Q)
 	float distance = maxDistance;
 	int counter = 0;
 	int farthestPointIdx = -1;
-	for(auto obj : points)
+	for (auto obj : points)
 	{
 		distance = distanceFromLine(P, Q, *obj);
-		if(distance > maxDistance)
+		if (distance > maxDistance)
 		{
 			maxDistance = distance;
 			farthestPointIdx = counter;
@@ -151,7 +164,7 @@ void FindHull(std::vector<Point*>& points, Point P, Point Q)
 		++counter;
 	}
 
-	if(farthestPointIdx == -1)
+	if (farthestPointIdx == -1)
 	{
 		std::cout << "farthestpoint not found :(" << std::endl;
 		exit(0);
@@ -170,26 +183,36 @@ void FindHull(std::vector<Point*>& points, Point P, Point Q)
 	}
 
 	// Subgroups of points outside of triangle
-	std::vector<Point*> S1, S2; 
+	std::vector<Point*> S1, S2;
 	sortPoints(P, *farthestPoint, points, S1);
 	sortPoints(*farthestPoint, Q, points, S2);
 
-	if (!S1.empty())
+	#pragma omp parallel num_threads(2)
 	{
-		FindHull(S1, P, *farthestPoint);
+		if (omp_get_thread_num() < 1)
+		{
+			if (!S1.empty())
+			{
+				FindHull(S1, P, *farthestPoint);
+			}
+		}
+		else
+		{
+			if (!S2.empty())
+			{
+				FindHull(S2, *farthestPoint, Q);
+			}
+		}
 	}
 
-	if (!S2.empty())
-	{
-		FindHull(S2, *farthestPoint, Q);
-	}
+	
 }
 
 int getAngle(const Point& P, const Point& Q, const Point& X)
 {
 	glm::vec2 PQ = Q.coords - P.coords;
 	glm::vec2 PX = X.coords - P.coords;
-	if(PQ.x * PX.y - PQ.y*PX.x < 0)
+	if (PQ.x * PX.y - PQ.y * PX.x < 0)
 	{
 		return -1;
 	}
@@ -212,16 +235,16 @@ void sortPoints(Point P, Point Q, std::vector<Point*>& points, std::vector<Point
 
 float distanceFromLine(Point P, Point Q, Point X)
 {
-	return std::abs((Q.coords.y - P.coords.y)*X.coords.x - (Q.coords.x - P.coords.x)*X.coords.y + Q.coords.x*P.coords.y - Q.coords.y*P.coords.x) / std::sqrt(std::pow((Q.coords.y - P.coords.y), 2) + std::pow((Q.coords.x - P.coords.x), 2));
+	return std::abs((Q.coords.y - P.coords.y) * X.coords.x - (Q.coords.x - P.coords.x) * X.coords.y + Q.coords.x * P.coords.y - Q.coords.y * P.coords.x) / std::sqrt(std::pow((Q.coords.y - P.coords.y), 2) + std::pow((Q.coords.x - P.coords.x), 2));
 }
 
 void DebugOutput(std::vector<Point*>& points)
 {
 	for (int i = 0; i < numPoints; ++i)
 	{
-	std::cout << "Point " << (i + 1) << " at ";
-	points[i]->print();
-	std::cout << " is " << (points[i]->hull ? "" : "not ") << "part of the hull." << std::endl;
+		std::cout << "Point " << (i + 1) << " at ";
+		points[i]->print();
+		std::cout << " is " << (points[i]->hull ? "" : "not ") << "part of the hull." << std::endl;
 	}
 }
 
@@ -229,12 +252,12 @@ void GeneratePoints(std::vector<Point*>& points)
 {
 	points.resize(numPoints);
 
-	#pragma omp parallel
+#pragma omp parallel
 	{
 		std::mt19937 eng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 		std::uniform_int_distribution<> distr(0, maxCoord);
 
-		#pragma omp for
+#pragma omp for
 		for (auto i = 0; i < numPoints; ++i)
 		{
 			points[i] = new Point(distr(eng) / 1100.0f, distr(eng) / 1100.0f);
@@ -242,7 +265,7 @@ void GeneratePoints(std::vector<Point*>& points)
 	}
 }
 
-bool ParseParameters(int &argc, char **argv)
+bool ParseParameters(int& argc, char** argv)
 {
 	CommandLineParser cmdline(argc, argv);
 
@@ -277,11 +300,8 @@ bool ParseParameters(int &argc, char **argv)
 
 	if (cmdline.cmdOptionExists("--render"))
 	{
-
 		vis = new Visualization();
-		
 	}
 
 	return true;
-
 }
