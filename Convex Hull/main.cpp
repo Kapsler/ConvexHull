@@ -87,6 +87,11 @@ int main(int argc, char **argv)
 		vis->Wait();
 	}
 
+	if(vis == nullptr)
+	{
+		DebugOutput(points);
+	}
+
 	//Freeing stuff
 	timer.StartTimer();
 	#pragma omp parallel
@@ -137,12 +142,14 @@ void FindHull(std::vector<Point*>& points, Point P, Point Q)
 {
 	// Find point with greatest distance from the line PQ
 	float maxDistance = -std::numeric_limits<float>().infinity();
-	float distance = maxDistance;
 	int counter = 0;
 	int farthestPointIdx = -1;
-	for(auto obj : points)
+
+	float distance = maxDistance;
+
+	for(int i = 0; i < points.size(); ++i)
 	{
-		distance = distanceFromLine(P, Q, *obj);
+		distance = distanceFromLine(P, Q, *points[i]);
 		if(distance > maxDistance)
 		{
 			maxDistance = distance;
@@ -210,7 +217,7 @@ void sortPoints(Point P, Point Q, std::vector<Point*>& points, std::vector<Point
 	}
 }
 
-float distanceFromLine(Point P, Point Q, Point X)
+float distanceFromLine(const Point P, const Point Q, const Point X)
 {
 	return std::abs((Q.coords.y - P.coords.y)*X.coords.x - (Q.coords.x - P.coords.x)*X.coords.y + Q.coords.x*P.coords.y - Q.coords.y*P.coords.x) / std::sqrt(std::pow((Q.coords.y - P.coords.y), 2) + std::pow((Q.coords.x - P.coords.x), 2));
 }

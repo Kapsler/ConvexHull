@@ -22,16 +22,24 @@ void Visualization::Render()
 	drawp.setOrigin(drawp.getRadius(), drawp.getRadius());
 	for (auto i = 0; i < structPoints->size(); ++i)
 	{
-		if ((*structPoints)[i]->hull)
-		{
-			drawp.setFillColor(sf::Color::Red);
-		}
-		else
+		if (!(*structPoints)[i]->hull)
 		{
 			drawp.setFillColor(sf::Color::Black);
+			drawp.setPosition((*structPoints)[i]->coords.x + offsetx, (*structPoints)[i]->coords.y + offsety);
+			window->draw(drawp);
 		}
-		drawp.setPosition((*structPoints)[i]->coords.x + offsetx, (*structPoints)[i]->coords.y + offsety);
-		window->draw(drawp);
+		
+	}
+	for (auto i = 0; i < structPoints->size(); ++i)
+	{
+		if ((*structPoints)[i]->hull)
+		{
+			drawp.setRadius(5);
+			drawp.setOrigin(drawp.getRadius(), drawp.getRadius());
+			drawp.setFillColor(sf::Color::Red);
+			drawp.setPosition((*structPoints)[i]->coords.x + offsetx, (*structPoints)[i]->coords.y + offsety);
+			window->draw(drawp);
+		}
 	}
 
 
