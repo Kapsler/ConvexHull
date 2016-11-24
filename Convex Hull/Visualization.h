@@ -35,8 +35,7 @@ public:
 	void Render();
 	void Wait(bool wait);
 
-	void SetPoints(std::vector<Point*>& other);
-	void UpdatePoint(Point* newPoint);
+	void SetPoints(std::vector<Point*>* other);
 	sf::CircleShape* ShapeForPoint(Point* newPoint) const;
 
 	void DeleteLine(Point* A, Point* B);
@@ -44,8 +43,7 @@ public:
 
 private:
 	sf::RenderWindow* window;
-
-	std::vector<sf::CircleShape*> points;
+	std::vector<Point*>* structPoints;
 	std::vector<Line*> lines;
 
 };

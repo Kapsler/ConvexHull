@@ -6,14 +6,16 @@
 #include "Visualization.h"
 #include <chrono>
 #include "TimerClass.h"
-#include <ppl.h>
+#include "CommandLineParser.h"
+#include "ReaderWriter.h"
 
-const int numPoints = 100000;
-const int maxCoord = 1000000;
+int numPoints = 1000000;
+int maxCoord = 1000000;
 Visualization *vis = nullptr;
+string inputFilename = "";
 
 bool stepmode = false;
-bool renderflag = true;
+bool renderflag = false;
 
 void QuickHull(std::vector<Point*>& points);
 void FindHull(std::vector<Point*>& points, Point P, Point Q);
@@ -22,44 +24,72 @@ void sortPoints(Point P, Point Q, std::vector<Point*>& points, std::vector<Point
 float distanceFromLine(Point P, Point Q, Point X);
 void DebugOutput(std::vector<Point*>& points);
 void GeneratePoints(std::vector<Point*>& points);
+bool ParseParameters(int &argc, char **argv);
 
-bool greaterX(Point *X,Point *Y)
+bool greaterX(Point *X, Point *Y)
 {
 	return X->coords.x < Y->coords.x;
 }
 
-int main()
+int main(int argc, char **argv)
 {
 	TimerClass timer;
-	double generationTime, hullTime, freeTime;
-	// Generate points
-	std::vector<Point*> points(numPoints);
-
-	if (renderflag)
+	double generationTime, hullTime, freeTime, singleRender = 0;
+	std::vector<Point*> points;
+	
+	if(!ParseParameters(argc, argv))
 	{
-		vis = new Visualization();
+		return -1;
 	}
 
-	timer.StartTimer();
-	GeneratePoints(points);
-	generationTime = timer.GetTime();
 
+	if(inputFilename.empty())
+	{
+		// Generate points
+		if (numPoints > 0) {
+			timer.StartTimer();
+			GeneratePoints(points);
+			generationTime = timer.GetTime();
+			std::cout << "Generating " << numPoints << " took " << generationTime << " seconds." << std::endl;;
+		} else {
+			cerr << "Not enough points!" << endl;
+			return -1;
+		}
+	} else
+	{
+		//Read from file
+		std::vector<float> numbers;
+		ReaderWriter(inputFilename, numbers);
+
+		points.resize(numbers.size() / 2.0f);
+		for(auto i = 0; i < points.size(); ++i)
+		{
+			points[i] = new Point(numbers[i], numbers[i + 1]);
+		}
+	}
+	
+
+	if (vis != nullptr)
+	{
+		vis->SetPoints(&points);
+		vis->Wait(stepmode);
+	}
+
+	//Make Hull
 	timer.StartTimer();
 	QuickHull(points);
 	hullTime = timer.GetTime();
 
 	if (vis != nullptr)
 	{
+		timer.StartTimer();
 		vis->Render();
+		singleRender = timer.GetTime();
+		std::cout << "Render done" << std::endl;
 		vis->Wait(true);
 	}
 
-	//DebugOutput(points);
-
 	//Freeing stuff
-
-	timer.StartTimer();
-
 	#pragma omp parallel
 	{
 		#pragma omp for
@@ -68,12 +98,15 @@ int main()
 			delete points[i];
 		}
 	}
-
+	timer.StartTimer();
+	
 	delete vis;
 	freeTime = timer.GetTime();
 
-	std::cout << "Generating " << numPoints << " took " << generationTime << " seconds." << std::endl;;
+	//Output
+	std::cout << endl;
 	std::cout << "Finding Hull took " << hullTime << " seconds." << std::endl;
+	std::cout << "Rendering took " << singleRender << " seconds." << std::endl;
 	std::cout << "Freeing stuff took " << freeTime << " seconds." << std::endl;
 
 	return 0;
@@ -81,17 +114,8 @@ int main()
 
 void QuickHull(std::vector<Point*>& points)
 {
-	// sort all points by X
-	//std::sort(points.begin(), points.end(), greaterX);
-	//trying parallel - works
-	concurrency::parallel_buffered_sort(points.begin(), points.end(), greaterX);
-
-	//Generate Visuals
-	if (vis != nullptr)
-	{
-		vis->SetPoints(points);
-		vis->Wait(stepmode);
-	}
+	std::nth_element(points.begin(), points.begin(), points.end(), greaterX);
+	std::nth_element(points.begin(), points.begin() + points.size() - 1, points.end(), greaterX);
 
 	Point* P = points[0]; // smallest X
 	Point* Q = points[points.size()-1]; // greatest X
@@ -99,8 +123,6 @@ void QuickHull(std::vector<Point*>& points)
 	Q->hull = true;
 	if (vis != nullptr)
 	{
-		vis->UpdatePoint(P);
-		vis->UpdatePoint(Q);
 		vis->AddLine(P, Q);
 		vis->Wait(stepmode);
 	}
@@ -148,7 +170,6 @@ void FindHull(std::vector<Point*>& points, Point P, Point Q)
 
 	if (vis != nullptr)
 	{
-		vis->UpdatePoint(farthestPoint);
 		vis->AddLine(&P, farthestPoint);
 		vis->AddLine(farthestPoint, &Q);
 		vis->Wait(stepmode);
@@ -214,17 +235,61 @@ void DebugOutput(std::vector<Point*>& points)
 
 void GeneratePoints(std::vector<Point*>& points)
 {
-	#pragma omp parallel
-	{	
+	points.resize(numPoints);
 
+	#pragma omp parallel
+	{
 		std::mt19937 eng(std::chrono::high_resolution_clock::now().time_since_epoch().count());
 		std::uniform_int_distribution<> distr(0, maxCoord);
 
 		#pragma omp for
-		for (int i = 0; i < numPoints; ++i)
+		for (auto i = 0; i < numPoints; ++i)
 		{
 			points[i] = new Point(distr(eng) / 1100.0f, distr(eng) / 1100.0f);
 		}
 	}
+}
+
+bool ParseParameters(int &argc, char **argv)
+{
+	CommandLineParser cmdline(argc, argv);
+
+	if (cmdline.cmdOptionExists("--in"))
+	{
+		inputFilename = cmdline.getCmdOption("--in");
+	}
+	else
+	{
+		cerr << "No inputfile, generating numbers!" << endl;
+
+		//If no inputfile --count is needed
+		if (cmdline.cmdOptionExists("--count"))
+		{
+			numPoints = stoi(cmdline.getCmdOption("--count"));
+		}
+		else
+		{
+			cerr << "--count not found, standard Numbercount is 1000000" << endl;
+			numPoints = 1000000;
+		}
+	}
+
+	if (cmdline.cmdOptionExists("--step"))
+	{
+		stepmode = true;
+	}
+	else
+	{
+		stepmode = false;
+	}
+
+	if (cmdline.cmdOptionExists("--render"))
+	{
+
+		vis = new Visualization();
+		
+	}
+
+	return true;
 
 }

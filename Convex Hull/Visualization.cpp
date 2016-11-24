@@ -7,42 +7,49 @@ Visualization::Visualization()
 
 Visualization::~Visualization()
 {
-	for(auto* p : points)
-	{
-		delete p;
-	}
-
 	delete window;
 }
 
 void Visualization::Render()
 {
 	window->clear(sf::Color::White);
-
+	
 	float offsetx = window->getSize().x * 0.06f;
 	float offsety = window->getSize().y * 0.04f;
 
+	sf::CircleShape drawp;
+	drawp.setRadius(2);
+	drawp.setOrigin(drawp.getRadius(), drawp.getRadius());
+	for (auto i = 0; i < structPoints->size(); ++i)
+	{
+		if ((*structPoints)[i]->hull)
+		{
+			drawp.setFillColor(sf::Color::Red);
+		}
+		else
+		{
+			drawp.setFillColor(sf::Color::Black);
+		}
+		drawp.setPosition((*structPoints)[i]->coords.x + offsetx, (*structPoints)[i]->coords.y + offsety);
+		window->draw(drawp);
+	}
+
 
 	sf::Vertex line[2];
-	for(const auto* l : lines)
+	for (auto i = 0; i < lines.size(); ++i)
 	{
-		line[0].position.x = l->start.x + offsetx;
-		line[0].position.y = l->start.y + offsety;
+		line[0].position.x = lines[i]->start.x + offsetx;
+		line[0].position.y = lines[i]->start.y + offsety;
 		line[0].color = sf::Color::Red;
 
-		line[1].position.x = l->end.x + offsetx;
-		line[1].position.y = l->end.y + offsety;
+		line[1].position.x = lines[i]->end.x + offsetx;
+		line[1].position.y = lines[i]->end.y + offsety;
 		line[1].color = sf::Color::Red;
 
 		window->draw(line, 2, sf::Lines);
 	}
 
-	for(const auto* p : points)
-	{
-		sf::CircleShape drawp(*p);
-		drawp.setPosition(drawp.getPosition().x + offsetx, drawp.getPosition().y + offsety);
-		window->draw(drawp);
-	}
+	
 
 	window->display();
 }
@@ -51,6 +58,8 @@ void Visualization::Wait(bool wait)
 {
 	sf::Event event;
 	bool waiting = wait;
+
+	Render();
 
 	while(window->isOpen() && waiting)
 	{
@@ -71,56 +80,16 @@ void Visualization::Wait(bool wait)
 					waiting = false;
 				}
 			}
-
 		}
-	
-		Render();
-	
 	}
 
 }
 
 
-void Visualization::SetPoints(std::vector<Point*>& other)
+void Visualization::SetPoints(std::vector<Point*>* other)
 {
-	for(auto i = 0; i < points.size(); i++)
-	{
-		delete points[i];
-	}
+	structPoints = other;
 
-	points.clear();
-
-	for(auto* o : other)
-	{
-		points.push_back(ShapeForPoint(o));
-	}
-}
-
-void Visualization::UpdatePoint(Point* newPoint)
-{
-	int index = -1;
-
-	for(int i = 0; i < points.size(); ++i)
-	{
-		if(points[i]->getPosition().x == newPoint->coords.x && points[i]->getPosition().y == newPoint->coords.y)
-		{
-			index = i;
-			break;
-		}
-	}
-
-	if(index == -1)
-	{
-		std::cerr << "SHOULD NOT HAPPEN" << std::endl;
-		exit(0);
-	}
-
-	sf::CircleShape* oldPoint = points[index];
-
-	sf::CircleShape* p = ShapeForPoint(newPoint);
-	points[index] = p;
-
-	delete oldPoint;
 }
 
 sf::CircleShape* Visualization::ShapeForPoint(Point* newPoint) const

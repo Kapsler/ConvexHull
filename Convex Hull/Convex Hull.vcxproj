@@ -146,7 +146,9 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="CommandLineParser.cpp" />
     <ClCompile Include="main.cpp" />
+    <ClCompile Include="ReaderWriter.cpp" />
     <ClCompile Include="TimerClass.cpp" />
     <ClCompile Include="Visualization.cpp" />
   </ItemGroup>
@@ -154,6 +156,8 @@
     <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="CommandLineParser.h" />
+    <ClInclude Include="ReaderWriter.h" />
     <ClInclude Include="TimerClass.h" />
     <ClInclude Include="Visualization.h" />
   </ItemGroup>
