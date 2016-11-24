@@ -155,19 +155,25 @@ void FindHull(std::vector<Point*>& points, Point P, Point Q)
 {
 	// Find point with greatest distance from the line PQ
 	float maxDistance = -std::numeric_limits<float>().infinity();
-	float distance = maxDistance;
 	int counter = 0;
 	int farthestPointIdx = -1;
-	for (auto obj : points)
+
+	#pragma omp parallel shared(maxDistance)
 	{
-		distance = distanceFromLine(P, Q, *obj);
-		if (distance > maxDistance)
+		float distance = maxDistance;
+		#pragma omp for
+		for (auto i = 0; i < points.size(); ++i)
 		{
-			maxDistance = distance;
-			farthestPointIdx = counter;
+			distance = distanceFromLine(P, Q, *points[i]);
+			if (distance > maxDistance)
+			{
+				maxDistance = distance;
+				farthestPointIdx = counter;
+			}
+			++counter;
 		}
-		++counter;
 	}
+	
 
 	if (farthestPointIdx == -1)
 	{
