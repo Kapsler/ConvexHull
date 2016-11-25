@@ -18,9 +18,9 @@ bool stepmode = false;
 bool renderflag = false;
 
 void QuickHull(std::vector<Point*>& points);
-void FindHull(std::vector<Point*>& points, Point P, Point Q);
-int getAngle(const Point& P, const Point& Q, const Point& X);
-void sortPoints(Point P, Point Q, std::vector<Point*>& points, std::vector<Point*>& S);
+void FindHull(std::vector<Point*>& points, Point* P, Point* Q);
+int getAngle(const Point* P, const Point* Q, const Point* X);
+void sortPoints(const Point* P, const Point* Q, std::vector<Point*>& points, std::vector<Point*>& S);
 float distanceFromLine(Point P, Point Q, Point X);
 void DebugOutput(std::vector<Point*>& points);
 void GeneratePoints(std::vector<Point*>& points);
@@ -62,9 +62,11 @@ int main(int argc, char **argv)
 		ReaderWriter(inputFilename, numbers);
 
 		points.resize(numbers.size() / 2.0f);
-		for(auto i = 0; i < points.size(); ++i)
+		auto p = 0;
+		for(auto i = 0; i < numbers.size(); i+=2)
 		{
-			points[i] = new Point(numbers[i], numbers[i + 1]);
+			points[p] = new Point(numbers[i], numbers[i + 1]);
+			p++;
 		}
 	}
 	
@@ -125,20 +127,20 @@ void QuickHull(std::vector<Point*>& points)
 	}
 
 	std::vector<Point*> S1, S2; // Subgroups of points left and right from separating vector PQ
-	sortPoints(*P, *Q, points, S1);
-	sortPoints(*Q, *P, points, S2);
+	sortPoints(P, Q, points, S1);
+	sortPoints(Q, P, points, S2);
 
 	if(!S1.empty())
 	{
-		FindHull(S1, *P, *Q);
+		FindHull(S1, P, Q);
 	}
 	if(!S2.empty())
 	{
-		FindHull(S2, *Q, *P);
+		FindHull(S2, Q, P);
 	}
 }
 
-void FindHull(std::vector<Point*>& points, Point P, Point Q)
+void FindHull(std::vector<Point*>& points, Point* P, Point* Q)
 {
 	// Find point with greatest distance from the line PQ
 	float maxDistance = -std::numeric_limits<float>().infinity();
@@ -149,7 +151,7 @@ void FindHull(std::vector<Point*>& points, Point P, Point Q)
 
 	for(int i = 0; i < points.size(); ++i)
 	{
-		distance = distanceFromLine(P, Q, *points[i]);
+		distance = distanceFromLine(*P, *Q, *points[i]);
 		if(distance > maxDistance)
 		{
 			maxDistance = distance;
@@ -169,33 +171,31 @@ void FindHull(std::vector<Point*>& points, Point P, Point Q)
 
 	if (vis != nullptr)
 	{
-		vis->AddLine(&P, farthestPoint);
-		vis->AddLine(farthestPoint, &Q);
+		vis->AddLinePoint(P, farthestPoint, Q);
 		if(stepmode) vis->Wait();
-		vis->DeleteLine(&P, &Q);
 		if(stepmode) vis->Wait();
 	}
 
 	// Subgroups of points outside of triangle
 	std::vector<Point*> S1, S2; 
-	sortPoints(P, *farthestPoint, points, S1);
-	sortPoints(*farthestPoint, Q, points, S2);
+	sortPoints(P, farthestPoint, points, S1);
+	sortPoints(farthestPoint, Q, points, S2);
 
 	if (!S1.empty())
 	{
-		FindHull(S1, P, *farthestPoint);
+		FindHull(S1, P, farthestPoint);
 	}
 
 	if (!S2.empty())
 	{
-		FindHull(S2, *farthestPoint, Q);
+		FindHull(S2, farthestPoint, Q);
 	}
 }
 
-int getAngle(const Point& P, const Point& Q, const Point& X)
+int getAngle(const Point* P, const Point* Q, const Point* X)
 {
-	glm::vec2 PQ = Q.coords - P.coords;
-	glm::vec2 PX = X.coords - P.coords;
+	glm::vec2 PQ = Q->coords - P->coords;
+	glm::vec2 PX = X->coords - P->coords;
 	if(PQ.x * PX.y - PQ.y*PX.x < 0)
 	{
 		return -1;
@@ -203,13 +203,13 @@ int getAngle(const Point& P, const Point& Q, const Point& X)
 	return 1;
 }
 
-void sortPoints(Point P, Point Q, std::vector<Point*>& points, std::vector<Point*>& S)
+void sortPoints(const Point* P, const Point* Q, std::vector<Point*>& points, std::vector<Point*>& S)
 {
 	for (Point* obj : points)
 	{
 		//ignore P and Q
-		if (obj->coords == P.coords || obj->coords == Q.coords) { continue; }
-		float angle = static_cast<float>(getAngle(P, Q, *obj));
+		if (obj->coords == P->coords || obj->coords == Q->coords) { continue; }
+		float angle = static_cast<float>(getAngle(P, Q, obj));
 		if (angle > 0)
 		{
 			S.push_back(obj);

@@ -36,28 +36,23 @@ void Visualization::Render()
 		{
 			drawp.setRadius(5);
 			drawp.setOrigin(drawp.getRadius(), drawp.getRadius());
-			drawp.setFillColor(sf::Color::Red);
+			drawp.setFillColor(sf::Color::Magenta);
 			drawp.setPosition((*structPoints)[i]->coords.x + offsetx, (*structPoints)[i]->coords.y + offsety);
 			window->draw(drawp);
 		}
 	}
 
 
-	sf::Vertex line[2];
-	for (auto i = 0; i < lines.size(); ++i)
+	sf::Vertex* drawHull = new sf::Vertex[linesHull.size()];
+
+	for (auto i = 0; i < linesHull.size(); i++)
 	{
-		line[0].position.x = lines[i]->start.x + offsetx;
-		line[0].position.y = lines[i]->start.y + offsety;
-		line[0].color = sf::Color::Red;
-
-		line[1].position.x = lines[i]->end.x + offsetx;
-		line[1].position.y = lines[i]->end.y + offsety;
-		line[1].color = sf::Color::Red;
-
-		window->draw(line, 2, sf::Lines);
+		drawHull[i].position.x = linesHull[i]->coords.x + offsetx;
+		drawHull[i].position.y = linesHull[i]->coords.y + offsety;
+		drawHull[i].color = sf::Color::Red;
 	}
-
 	
+	window->draw(drawHull, linesHull.size(), sf::LineStrip);
 
 	window->display();
 }
@@ -100,43 +95,30 @@ void Visualization::SetPoints(std::vector<Point*>* other)
 
 }
 
-sf::CircleShape* Visualization::ShapeForPoint(Point* newPoint) const
-{
-	sf::CircleShape* p;
-	p = new sf::CircleShape(2.0f);
-	p->setPosition(newPoint->coords.x, newPoint->coords.y);
-	if (newPoint->hull)
-	{
-		p->setFillColor(sf::Color::Red);
-	}
-	else
-	{
-		p->setFillColor(sf::Color::Black);
-	}
-	p->setOrigin(p->getRadius(), p->getRadius());
-
-	return p;
-}
-
-void Visualization::DeleteLine(Point* A, Point* B)
-{
-	auto i = lines.begin();
-	for(; i != lines.end();)
-	{
-		if ((A->coords == (*i)->start && B->coords == (*i)->end) || (B->coords == (*i)->start && A->coords == (*i)->end))
-		{
-			i = lines.erase(i);
-		} else
-		{
-			++i;
-		}
-	}
-}
-
 void Visualization::AddLine(Point* A, Point* B)
 {
-	Line* l = new Line();
-	l->start = A->coords;
-	l->end = B->coords;
-	lines.push_back(l);
+	linesHull.push_back(B);
+	linesHull.push_back(A);
+	linesHull.push_back(A);
+	linesHull.push_back(B);
+
+}
+
+void Visualization::AddLinePoint(const Point* p1, Point* newpoint, const Point* p2)
+{
+	auto it = linesHull.begin()+1;
+
+	for(;it != linesHull.end();)
+	{
+		if ((*it)->coords == p2->coords && (*(it - 1))->coords == p1->coords)
+		{
+			linesHull.insert(it, newpoint);
+			break;
+		
+		} else
+		{
+			++it;
+		}
+	}
+
 }

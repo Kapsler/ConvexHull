@@ -76,6 +76,7 @@ void ReaderWriter::readInputFile(string inputFilename)
 	} else
 	{
 		cerr << "Inputfile " << inputFilename << " not Found!" << endl;
+		exit(-1);
 	}
 
 }
