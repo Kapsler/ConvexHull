@@ -91,7 +91,7 @@ int main(int argc, char **argv)
 
 	if(vis == nullptr)
 	{
-		DebugOutput(points);
+		//DebugOutput(points);
 	}
 
 	//Freeing stuff
