@@ -21,7 +21,7 @@ void QuickHull(std::vector<Point*>& points);
 void FindHull(std::vector<Point*>& points, Point* P, Point* Q);
 int getAngle(const Point* P, const Point* Q, const Point* X);
 void sortPoints(const Point* P, const Point* Q, std::vector<Point*>& points, std::vector<Point*>& S);
-float distanceFromLine(Point P, Point Q, Point X);
+float inline distanceFromLine(Point P, Point Q, Point X);
 void DebugOutput(std::vector<Point*>& points);
 void GeneratePoints(std::vector<Point*>& points);
 bool ParseParameters(int &argc, char **argv);
@@ -177,19 +177,39 @@ void FindHull(std::vector<Point*>& points, Point* P, Point* Q)
 	}
 
 	// Subgroups of points outside of triangle
-	std::vector<Point*> S1, S2; 
-	sortPoints(P, farthestPoint, points, S1);
-	sortPoints(farthestPoint, Q, points, S2);
 
-	if (!S1.empty())
+	#pragma omp parallel num_threads(8)
 	{
-		FindHull(S1, P, farthestPoint);
+		#pragma omp sections 
+		{
+
+			#pragma omp section 
+			{
+				std::vector<Point*> S1;
+
+				sortPoints(P, farthestPoint, points, S1);
+				if (!S1.empty())
+				{
+					FindHull(S1, P, farthestPoint);
+				}
+			}
+
+			#pragma omp section 
+			{
+				std::vector<Point*> S2;
+
+				sortPoints(farthestPoint, Q, points, S2);
+				if (!S2.empty())
+				{
+					FindHull(S2, farthestPoint, Q);
+				}
+			}
+
+		}
 	}
 
-	if (!S2.empty())
-	{
-		FindHull(S2, farthestPoint, Q);
-	}
+
+	
 }
 
 int getAngle(const Point* P, const Point* Q, const Point* X)
@@ -217,9 +237,9 @@ void sortPoints(const Point* P, const Point* Q, std::vector<Point*>& points, std
 	}
 }
 
-float distanceFromLine(const Point P, const Point Q, const Point X)
+float inline distanceFromLine(const Point P, const Point Q, const Point X)
 {
-	return std::abs((Q.coords.y - P.coords.y)*X.coords.x - (Q.coords.x - P.coords.x)*X.coords.y + Q.coords.x*P.coords.y - Q.coords.y*P.coords.x) / std::sqrt(std::pow((Q.coords.y - P.coords.y), 2) + std::pow((Q.coords.x - P.coords.x), 2));
+	return std::abs((Q.coords.y - P.coords.y)*X.coords.x - (Q.coords.x - P.coords.x)*X.coords.y + Q.coords.x*P.coords.y - Q.coords.y*P.coords.x) /  ((Q.coords.y - P.coords.y) * (Q.coords.y - P.coords.y) + (Q.coords.x - P.coords.x) * (Q.coords.x - P.coords.x));
 }
 
 void DebugOutput(std::vector<Point*>& points)
